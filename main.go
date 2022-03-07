@@ -1,38 +1,61 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
+	"log"
+	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
-	"path/filepath"
-	"syscall"
+	"strings"
 
-	"github.com/zserge/lorca"
+	"github.com/gin-gonic/gin"
 )
 
+//go:embed frontend/dist/*
+var FS embed.FS
+
 func main() {
-	var ui lorca.UI //接口：只要声明这个借口的变量，他就具有接口中的方法
-	currentDir, _ := os.Getwd()
-	dir := filepath.Join(currentDir, ".cache")
-	ui, _ = lorca.New("https://baidu.com", dir, 800, 600, "--disable-sync", "--disable-translate")
-	//os.signal 操作系统的信号
+	go func() {
+		gin.SetMode(gin.ReleaseMode)
+		router := gin.Default()
+		staticFiles, _ := fs.Sub(FS, "frontend/dist")
+		router.StaticFS("/static", http.FS(staticFiles))
+		router.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
+			if strings.HasPrefix(path, "/static/") {
+				reader, err := staticFiles.Open("index.html")
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer reader.Close()
+				stat, err := reader.Stat()
+				if err != nil {
+					log.Fatal(err)
+				}
+				c.DataFromReader(http.StatusOK, stat.Size(), "text/html;charset=utf-8", reader, nil)
+			} else {
+				c.Status(http.StatusNotFound)
+			}
+		})
+		router.Run(":8080")
+	}()
+	//开一个子进程启动chrome
+	chromePath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	cmd := exec.Command(chromePath, "--app=http://localhost:8080/static/index.html")
+	cmd.Start()
+	//<-chSignal//如果channel中没有值的传入，那就会阻塞在这里
+	//cmd.Process.Kill()
+	//select {} //目的是不让mian进行结束，因为如果main进程结束了，里面开的gin进程
+	//也就会结束，所以就是导致无法访问
 	chSignal := make(chan os.Signal, 1)
-	//订阅信号，监听系统调用的终止信号，把信号传给chSignal
-	signal.Notify(chSignal, syscall.SIGINT, syscall.SIGTERM) //中断信号 终止信号
-	//专门用来进行channel的筛选的
-	//同时尝试读取两个channel的信号，把首先读到的信号进行执行
-	//select会阻塞当前线程，不会继续执行了
-	//-------------------------------------------------------------
-	// select {
-	// case <-ui.Done(): //:后面为党case进行选择之后执行的代码
-	// 	ui.Close()
-	// 	return
-	// case <-chSignal:
-	// 	ui.Close()
-	// 	return
-	// }
+	signal.Notify(chSignal, os.Interrupt) //监听Ctrl+C的信号，有信号就传给channel
 	select {
-	case <-ui.Done(): //:后面为党case进行选择之后执行的代码
 	case <-chSignal:
+		cmd.Process.Kill()
 	}
-	ui.Close()
 }
+
+//接口是对方法的约束
+//type是对属性的约束
