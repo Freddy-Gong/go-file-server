@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//把前端打包到go生产的文件上
 //go:embed frontend/dist/*
 var FS embed.FS
 
