@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Freddy-Gong/file-server/config"
 	"github.com/Freddy-Gong/file-server/server/controller"
 	"github.com/Freddy-Gong/file-server/server/ws"
 	"github.com/gin-gonic/gin"
@@ -48,5 +49,5 @@ func Run() {
 			c.Status(http.StatusNotFound)
 		}
 	})
-	router.Run(":8080")
+	router.Run(":" + config.GetPort())
 }

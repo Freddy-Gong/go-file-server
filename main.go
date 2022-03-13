@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"os/signal"
 
+	"github.com/Freddy-Gong/file-server/config"
 	"github.com/Freddy-Gong/file-server/server"
 )
 
@@ -25,7 +26,7 @@ func main() {
 
 func startBrowser() *exec.Cmd {
 	chromePath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	cmd := exec.Command(chromePath, "--app=http://localhost:8080/static/index.html")
+	cmd := exec.Command(chromePath, "--app=http://localhost:"+config.GetPort()+"/static/index.html")
 	cmd.Start()
 	return cmd
 }
