@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Freddy-Gong/file-server/server/controller"
+	"github.com/Freddy-Gong/file-server/server/ws"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,9 +17,14 @@ import (
 var FS embed.FS
 
 func Run() {
+	hub := ws.NewHub()
+	go hub.Run()
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	staticFiles, _ := fs.Sub(FS, "frontend/dist")
+	router.GET("/ws", func(c *gin.Context) {
+		ws.HttpController(c, hub)
+	})
 	router.POST("/api/v1/files", controller.FilesController)
 	router.GET("/api/v1/qrcodes", controller.QrcodesController)
 	router.GET("/uploads/:path", controller.UploadsController)
